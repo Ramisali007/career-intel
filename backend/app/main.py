@@ -105,6 +105,18 @@ app.include_router(exports.router, prefix=f"{settings.API_PREFIX}/exports", tags
 app.include_router(profile.router, prefix=f"{settings.API_PREFIX}/profile", tags=["Career Profile"])
 
 
+@app.get("/")
+async def root():
+    """Root status endpoint."""
+    return {
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "status": "online",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
