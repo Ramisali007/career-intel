@@ -1,0 +1,11 @@
+# Backend Secrets & Uploads
+.env
+.env.*
+!.env.example
+uploads/*
+!uploads/.gitkeep
+__pycache__/
+*.py[cod]
+.pytest_cache/
+venv/
+.venv/
