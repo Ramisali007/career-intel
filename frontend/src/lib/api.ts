@@ -57,11 +57,15 @@ class ApiClient {
     });
 
     if (res.status === 401) {
-      this.clearToken();
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
+      const isAuthRoute = path.startsWith("/auth/login") || path.startsWith("/auth/register");
+      const error = await res.json().catch(() => ({ detail: "Unauthorized" }));
+      if (!isAuthRoute) {
+        this.clearToken();
+        if (typeof window !== "undefined" && window.location.pathname !== "/login" && window.location.pathname !== "/register") {
+          window.location.href = "/login";
+        }
       }
-      throw new Error("Unauthorized");
+      throw new Error(error.detail || "Invalid email or password");
     }
 
     if (!res.ok) {

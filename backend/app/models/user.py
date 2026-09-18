@@ -4,8 +4,13 @@ User Model - Authentication and user management.
 
 from beanie import Document
 from pydantic import BaseModel, EmailStr, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+import pymongo
+
+
+def get_utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class User(Document):
@@ -16,8 +21,8 @@ class User(Document):
     full_name: str = ""
     is_active: bool = True
     is_verified: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=get_utc_now)
+    updated_at: datetime = Field(default_factory=get_utc_now)
     last_login: Optional[datetime] = None
 
     # OAuth
@@ -27,7 +32,7 @@ class User(Document):
     class Settings:
         name = "users"
         indexes = [
-            "email",
+            pymongo.IndexModel([("email", pymongo.ASCENDING)], unique=True),
         ]
 
 

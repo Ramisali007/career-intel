@@ -3,7 +3,7 @@ Authentication & Security (§47).
 JWT-based authentication with password hashing.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -31,12 +31,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(user_id: str, email: str) -> str:
     """Create a JWT access token."""
-    expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "sub": user_id,
         "email": email,
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": now,
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
@@ -64,7 +65,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token payload")
 
-    user = await User.get(user_id)
+    try:
+        user = await User.get(user_id)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid user ID in token")
+
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
 

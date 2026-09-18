@@ -288,6 +288,7 @@ async def list_analyses(
         jd = await JobDescription.get(a.job_description_id)
         results.append({
             "id": str(a.id),
+            "document_id": a.document_id,
             "status": a.status,
             "job_title": jd.parsed_jd.job_title if jd and jd.parsed_jd else jd.title if jd else "",
             "company": jd.parsed_jd.company if jd and jd.parsed_jd else "",
@@ -461,9 +462,16 @@ async def delete_analysis(analysis_id: str, user: User = Depends(get_current_use
     for r in recs:
         await r.delete()
 
-    # Cascade delete CV versions
+    import os
+    # Cascade delete CV versions and exported files
     versions = await CVVersion.find(CVVersion.analysis_id == analysis_id).to_list()
     for v in versions:
+        for p in (v.exported_pdf_path, v.exported_docx_path):
+            if p and os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
         await v.delete()
 
     # Delete analysis

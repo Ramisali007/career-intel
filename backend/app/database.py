@@ -18,7 +18,7 @@ async def init_db():
     global _client
 
     from app.models.user import User
-    from app.models.document import Document, DocumentVersion
+    from app.models.document import Document
     from app.models.job_description import JobDescription
     from app.models.analysis import Analysis
     from app.models.recommendation import Recommendation
@@ -43,10 +43,10 @@ async def init_db():
 
     await init_beanie(
         database=db,
+        allow_index_dropping=True,
         document_models=[
             User,
             Document,
-            DocumentVersion,
             JobDescription,
             Analysis,
             Recommendation,

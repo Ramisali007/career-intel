@@ -4,7 +4,7 @@ All environment variables, scoring weights, AI provider config, and application 
 """
 
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, model_validator
 from typing import Optional
 import os
 
@@ -25,20 +25,21 @@ class Settings(BaseSettings):
     )
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
-    def validate_secret_key(self) -> str:
-        """Warn if using default secret key."""
+    @model_validator(mode="after")
+    def validate_secret_key(self) -> "Settings":
+        """Warn or raise if using default secret key in production."""
         import warnings
         if self.SECRET_KEY == "change-this-in-production-use-a-strong-random-key":
-            if self.ENVIRONMENT not in ("development", "test"):
+            if self.ENVIRONMENT in ("production", "staging"):
                 raise ValueError(
                     "SECRET_KEY must be changed from default in production! "
                     "Set SECRET_KEY environment variable to a secure random string."
                 )
             warnings.warn(
-                "Using default SECRET_KEY — this is only acceptable in development.",
+                "Using default SECRET_KEY — this is only acceptable in development/test.",
                 stacklevel=2,
             )
-        return self.SECRET_KEY
+        return self
 
     # ── Database ──
     MONGODB_URL: str = "mongodb://localhost:27017"

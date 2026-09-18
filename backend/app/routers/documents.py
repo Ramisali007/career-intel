@@ -160,15 +160,42 @@ async def get_document(document_id: str, user: User = Depends(get_current_user))
 
 @router.delete("/{document_id}")
 async def delete_document(document_id: str, user: User = Depends(get_current_user)):
-    """Delete a document and its file (§45)."""
+    """Delete a document and cascade clean related analyses, recommendations, versions, and files (§45)."""
     doc = await Document.get(document_id)
     if not doc or doc.user_id != str(user.id):
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Delete file
-    if os.path.exists(doc.file_path):
-        os.remove(doc.file_path)
+    from app.models.analysis import Analysis
+    from app.models.recommendation import Recommendation
+    from app.models.cv_version import CVVersion
 
+    # 1. Cascade clean associated analyses and their recommendations
+    analyses = await Analysis.find(Analysis.document_id == document_id).to_list()
+    for analysis in analyses:
+        recs = await Recommendation.find(Recommendation.analysis_id == str(analysis.id)).to_list()
+        for r in recs:
+            await r.delete()
+        await analysis.delete()
+
+    # 2. Cascade clean CV versions and exported files
+    versions = await CVVersion.find(CVVersion.document_id == document_id).to_list()
+    for v in versions:
+        for p in (v.exported_pdf_path, v.exported_docx_path):
+            if p and os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
+        await v.delete()
+
+    # 3. Delete document file from disk
+    if doc.file_path and os.path.exists(doc.file_path):
+        try:
+            os.remove(doc.file_path)
+        except Exception:
+            pass
+
+    # 4. Delete document database record
     await doc.delete()
 
     await AuditLog(
@@ -176,6 +203,13 @@ async def delete_document(document_id: str, user: User = Depends(get_current_use
         action="document_deleted",
         entity_type="document",
         entity_id=document_id,
+        details={
+            "cleaned_analyses": len(analyses),
+            "cleaned_versions": len(versions),
+        },
     ).save()
 
-    return {"message": "Document deleted successfully"}
+    return {
+        "message": "Document and all associated analyses, recommendations, and versions deleted successfully",
+        "deleted_id": document_id,
+    }

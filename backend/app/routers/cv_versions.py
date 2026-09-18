@@ -152,13 +152,24 @@ async def rollback_cv_version(version_id: str, user: User = Depends(get_current_
 @router.delete("/{version_id}")
 async def delete_cv_version(version_id: str, user: User = Depends(get_current_user)):
     """
-    Delete a specific CV version (§45).
+    Delete a specific CV version and clean up on-disk export files (§45).
     """
+    import os
+
     version = await CVVersion.get(version_id)
     if not version or version.user_id != str(user.id):
         raise HTTPException(status_code=404, detail="CV version not found")
 
     v_num = version.version
+
+    # Clean up exported files on disk
+    for p in (version.exported_pdf_path, version.exported_docx_path):
+        if p and os.path.exists(p):
+            try:
+                os.remove(p)
+            except Exception:
+                pass
+
     await version.delete()
 
     # Audit log (§59)

@@ -149,38 +149,3 @@ class Document(BeanieDocument):
             "user_id",
             "content_hash",
         ]
-
-
-class DocumentVersion(BeanieDocument):
-    """Tracks document versions - never overwrite (§36)."""
-
-    user_id: str
-    document_id: str
-    version: int = 1
-    source_version_id: Optional[str] = None  # Parent version
-    job_description_id: Optional[str] = None  # If tailored for a JD
-    analysis_id: Optional[str] = None
-
-    # Content
-    parsed_cv: Optional[ParsedCV] = None
-    content_hash: str = ""
-
-    # Scores at this version
-    job_match_score: Optional[float] = None
-    ats_score: Optional[float] = None
-    quality_score: Optional[float] = None
-
-    # Change tracking
-    changes_applied: list[str] = []  # IDs of approved recommendations
-    changes_rejected: list[str] = []
-
-    # Metadata
-    version_type: str = "original"  # original, optimized, tailored, manual
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-    class Settings:
-        name = "document_versions"
-        indexes = [
-            "user_id",
-            "document_id",
-        ]

@@ -5,6 +5,7 @@ Exports Router - PDF/DOCX generation and download (§41-43, §93).
 from fastapi import APIRouter, Depends, HTTPException, Response
 from typing import Optional
 from datetime import datetime
+import re
 
 from app.models.user import User
 from app.models.cv_version import CVVersion
@@ -23,7 +24,7 @@ async def list_templates():
 
 
 async def _get_cv_data(version_or_doc_id: str, user: User) -> tuple[dict, str]:
-    """Retrieve parsed CV data from either a CVVersion or a Document."""
+    """Retrieve parsed CV data from either a CVVersion, an Analysis, or a Document."""
     version = await CVVersion.get(version_or_doc_id)
     if version and version.user_id == str(user.id) and version.parsed_cv:
         return version.parsed_cv.model_dump(), f"v{version.version}"
@@ -44,14 +45,31 @@ async def _get_cv_data(version_or_doc_id: str, user: User) -> tuple[dict, str]:
     from app.models.analysis import Analysis
     analysis = await Analysis.get(version_or_doc_id)
     if analysis and analysis.user_id == str(user.id):
-        if analysis.latest_version_id:
-            ver = await CVVersion.get(analysis.latest_version_id)
+        # 1. Check optimized version if linked
+        if analysis.optimized_cv_version_id:
+            ver = await CVVersion.get(analysis.optimized_cv_version_id)
             if ver and ver.parsed_cv:
                 return ver.parsed_cv.model_dump(), f"v{ver.version}"
+
+        # 2. Check latest CVVersion for this analysis
+        latest_ver = await CVVersion.find(
+            CVVersion.analysis_id == str(analysis.id),
+            CVVersion.user_id == str(user.id),
+        ).sort("-version").first_or_none()
+        if latest_ver and latest_ver.parsed_cv:
+            return latest_ver.parsed_cv.model_dump(), f"v{latest_ver.version}"
+
+        # 3. Check original CV version if linked
+        if analysis.original_cv_version_id:
+            ver = await CVVersion.get(analysis.original_cv_version_id)
+            if ver and ver.parsed_cv:
+                return ver.parsed_cv.model_dump(), f"v{ver.version}"
+
+        # 4. Fallback to parent document
         if analysis.document_id:
             analysis_doc = await Document.get(analysis.document_id)
             if analysis_doc and analysis_doc.parsed_cv:
-                return analysis_doc.parsed_cv.model_dump(), "analysis_cv"
+                return analysis_doc.parsed_cv.model_dump(), "original"
 
     raise HTTPException(status_code=404, detail="CV version or document data not found")
 
@@ -83,7 +101,9 @@ async def export_pdf(
         details={"template": template, "label": label},
     ).save()
 
-    candidate_name = cv_data.get("contact_info", {}).get("name", "Candidate").replace(" ", "_")
+    contact = cv_data.get("contact") or cv_data.get("contact_info") or {}
+    raw_name = contact.get("name") or "Candidate"
+    candidate_name = re.sub(r"[^\w\-]", "_", raw_name.strip()) or "Candidate"
     filename = f"{candidate_name}_CV_{template}_{label}.pdf"
 
     return Response(
@@ -123,7 +143,9 @@ async def export_docx(
         details={"template": template, "label": label},
     ).save()
 
-    candidate_name = cv_data.get("contact_info", {}).get("name", "Candidate").replace(" ", "_")
+    contact = cv_data.get("contact") or cv_data.get("contact_info") or {}
+    raw_name = contact.get("name") or "Candidate"
+    candidate_name = re.sub(r"[^\w\-]", "_", raw_name.strip()) or "Candidate"
     filename = f"{candidate_name}_CV_{template}_{label}.docx"
 
     return Response(

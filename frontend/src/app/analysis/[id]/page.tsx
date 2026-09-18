@@ -178,7 +178,8 @@ export default function AnalysisResultsPage() {
   const scores = analysis.scores || {};
   const origScores = analysis.original_scores || scores;
   const optScores = analysis.optimized_scores;
-  const hasOptimizedVersion = !!optScores || !!analysis.latest_version_id;
+  const activeScores = optScores || scores;
+  const hasOptimizedVersion = !!optScores || !!analysis.latest_version_id || !!analysis.optimized_cv_version_id;
 
   const tabs = [
     { id: "overview", label: "Overview", icon: BarChart3 },
@@ -282,24 +283,24 @@ export default function AnalysisResultsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <ScoreCard
             label="Job Match Score"
-            score={scores.job_match_score || 0}
-            subtitle={scores.job_match_confidence ? `${scores.job_match_confidence.toUpperCase()} CONFIDENCE` : "Factual Skill Alignment"}
+            score={activeScores.job_match_score || 0}
+            subtitle={activeScores.job_match_confidence ? `${activeScores.job_match_confidence.toUpperCase()} CONFIDENCE` : "Factual Skill Alignment"}
             tooltip="Measures factual alignment between evidenced skills and requirements. Computed deterministically by the scoring engine."
-            breakdown={scores.job_match_breakdown}
+            breakdown={activeScores.job_match_breakdown}
           />
           <ScoreCard
             label="ATS Compatibility"
-            score={scores.ats_score || 0}
+            score={activeScores.ats_score || 0}
             subtitle="Format & Parser Ready"
             tooltip="Checks format readability, standard section headers, font safety, and parsability by automated applicant tracking systems."
-            breakdown={scores.ats_breakdown}
+            breakdown={activeScores.ats_breakdown}
           />
           <ScoreCard
             label="CV Quality Score"
-            score={scores.quality_score || 0}
+            score={activeScores.quality_score || 0}
             subtitle="Impact & Action Verbs"
             tooltip="Measures clarity, action verbs, quantified achievements (ATTI framework), and professional structural presentation."
-            breakdown={scores.quality_breakdown}
+            breakdown={activeScores.quality_breakdown}
           />
         </div>
 
@@ -598,37 +599,73 @@ export default function AnalysisResultsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                       <div className="bg-slate-950/70 rounded-2xl p-4 border border-slate-800">
                         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Job Match</span>
-                        <div className="flex items-baseline gap-3 mt-2 font-mono">
+                        <div className="flex items-baseline gap-3 mt-2 font-mono flex-wrap">
                           <span className="text-base text-slate-400 line-through">
                             {Math.round(origScores.job_match_score || 0)}%
                           </span>
                           <span className="text-2xl font-bold text-emerald-400">
-                            {Math.round(optScores?.job_match_score || scores.job_match_score || 0)}%
+                            {Math.round(optScores?.job_match_score || activeScores.job_match_score || 0)}%
                           </span>
+                          {optScores && (() => {
+                            const delta = Math.round((optScores.job_match_score || 0) - (origScores.job_match_score || 0));
+                            return (
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
+                                delta >= 0
+                                  ? "text-emerald-400 bg-emerald-950/80 border-emerald-500/40"
+                                  : "text-rose-400 bg-rose-950/80 border-rose-500/40"
+                              }`}>
+                                {delta >= 0 ? `+${delta}%` : `${delta}%`}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
 
                       <div className="bg-slate-950/70 rounded-2xl p-4 border border-slate-800">
                         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">ATS Score</span>
-                        <div className="flex items-baseline gap-3 mt-2 font-mono">
+                        <div className="flex items-baseline gap-3 mt-2 font-mono flex-wrap">
                           <span className="text-base text-slate-400 line-through">
                             {Math.round(origScores.ats_score || 0)}%
                           </span>
                           <span className="text-2xl font-bold text-cyan-400">
-                            {Math.round(optScores?.ats_score || scores.ats_score || 0)}%
+                            {Math.round(optScores?.ats_score || activeScores.ats_score || 0)}%
                           </span>
+                          {optScores && (() => {
+                            const delta = Math.round((optScores.ats_score || 0) - (origScores.ats_score || 0));
+                            return (
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
+                                delta >= 0
+                                  ? "text-cyan-400 bg-cyan-950/80 border-cyan-500/40"
+                                  : "text-rose-400 bg-rose-950/80 border-rose-500/40"
+                              }`}>
+                                {delta >= 0 ? `+${delta}%` : `${delta}%`}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
 
                       <div className="bg-slate-950/70 rounded-2xl p-4 border border-slate-800">
                         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Quality</span>
-                        <div className="flex items-baseline gap-3 mt-2 font-mono">
+                        <div className="flex items-baseline gap-3 mt-2 font-mono flex-wrap">
                           <span className="text-base text-slate-400 line-through">
                             {Math.round(origScores.quality_score || 0)}%
                           </span>
                           <span className="text-2xl font-bold text-purple-400">
-                            {Math.round(optScores?.quality_score || scores.quality_score || 0)}%
+                            {Math.round(optScores?.quality_score || activeScores.quality_score || 0)}%
                           </span>
+                          {optScores && (() => {
+                            const delta = Math.round((optScores.quality_score || 0) - (origScores.quality_score || 0));
+                            return (
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${
+                                delta >= 0
+                                  ? "text-purple-400 bg-purple-950/80 border-purple-500/40"
+                                  : "text-rose-400 bg-rose-950/80 border-rose-500/40"
+                              }`}>
+                                {delta >= 0 ? `+${delta}%` : `${delta}%`}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

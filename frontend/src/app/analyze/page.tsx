@@ -81,7 +81,14 @@ export default function AnalyzePage() {
   };
 
   const startAnalysis = async () => {
-    if (!jdText.trim() || !file) return;
+    if (!file) {
+      setError("Please upload your CV (.pdf or .docx) to analyze.");
+      return;
+    }
+    if (!jdText.trim() || jdText.trim().length < 50) {
+      setError("Please provide a detailed Job Description (at least 50 characters).");
+      return;
+    }
 
     setStep("processing");
     setError("");

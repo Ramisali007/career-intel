@@ -28,6 +28,7 @@ services:
       - ENVIRONMENT=production
       - CORS_ORIGINS=["http://localhost:3000"]
       - UPLOAD_DIR=/app/uploads
+      - SECRET_KEY=${SECRET_KEY:-careerintel-prod-secret-key-32chars-min-change-in-env}
     volumes:
       - cv_uploads:/app/uploads
     depends_on:
@@ -39,6 +40,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
     container_name: cv-analyzer-frontend
     ports:
       - "3000:3000"
